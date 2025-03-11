@@ -3,7 +3,7 @@
   "filters": {},
   "rules": {
     "terminology": {
-      "exclude": ["id"]
+      "terms": ["id"]
     }
   }
 }

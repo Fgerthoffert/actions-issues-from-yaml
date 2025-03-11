@@ -203,7 +203,7 @@ repository `org/repo`.
 | labels      | n/a     | string[] | false    | Label(s) to add to the issue                                                                      |
 | assignees   | n/a     | string[] | false    | Assignees to add to the issue                                                                     |
 
-### Linking to other issues
+### Linking to other issues
 
 This is very similar to variables, define an id in one of the issues, and refer
 to that id from other descriptions using `{{ id.myIssue }}` (only the
