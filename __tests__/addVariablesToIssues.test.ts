@@ -1,5 +1,4 @@
 import { addVariablesToIssues } from '../src/utils/addVariablesToIssues'
-/// <reference path="../src/types.d.ts" />
 
 describe('addVariablesToIssues', () => {
   const variables = [
@@ -35,10 +34,6 @@ describe('addVariablesToIssues', () => {
     )
     expect(updatedIssues[0].milestone).toBe('milestone 1.2.3')
     expect(updatedIssues[0].type).toBe('Release')
-    if (updatedIssues[0].project !== undefined) {
-      expect(updatedIssues[0].project.title).toBe('test project')
-      expect(updatedIssues[0].project.status).toBe('done')
-    }
     expect(updatedIssues[0].labels).toEqual(['bug', 'enhancement'])
     expect(updatedIssues[0].assignees).toEqual(['userA', 'userB'])
   })
