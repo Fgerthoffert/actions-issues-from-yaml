@@ -1,0 +1,29 @@
+name: 'Create GitHub Issues from YAML'
+description:
+  'This actions creates GitHub issues in bulk by parsing the content of a YAML
+  file'
+author: 'fgerthoffert'
+
+# Add your action's branding here. This will appear on the GitHub Marketplace.
+branding:
+  icon: heart
+  color: red
+
+# Define your inputs here.
+inputs:
+  token:
+    description: 'A GitHub Personal API Token'
+    required: true
+  config:
+    description: 'Filepath to a yaml file containing the configuration'
+    required: true
+
+# Define your outputs here.
+outputs:
+  issues:
+    description:
+      A JSON object containing all of the issues created by the action
+
+runs:
+  using: node20
+  main: dist/index.js

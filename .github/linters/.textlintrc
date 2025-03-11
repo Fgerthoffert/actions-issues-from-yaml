@@ -1,0 +1,9 @@
+{
+  "plugins": {},
+  "filters": {},
+  "rules": {
+    "terminology": {
+      "defaultTerms": false
+    }
+  }
+}
