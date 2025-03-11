@@ -1,0 +1,9 @@
+{
+  "plugins": {},
+  "filters": {},
+  "rules": {
+    "terminology": {
+      "exclude": ["id"]
+    }
+  }
+}

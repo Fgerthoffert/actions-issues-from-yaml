@@ -56,7 +56,7 @@ The following issue fields are supported:
 | Parameter | Default | Description                                          | Required |
 | --------- | ------- | ---------------------------------------------------- | -------- |
 | token     |         | A GitHub Personal API Token                          | true     |
-| config    |         | Filepath to a yaml file containing the configuration | true     |
+| config    |         | Filepath to a YAML file containing the configuration | true     |
 
 ## Outputs
 
@@ -196,7 +196,7 @@ repository `org/repo`.
 | repository  | n/a     | string   | true     | Repository in which the issue should be created, using the format `org/repo`                      |
 | children    | n/a     | Issue[]  | true     | Children issues to create                                                                         |
 | id          | n/a     | string   | false    | Self-defined id for the issue, used to reference that issue from the description of other issues. |
-| description | n/a     | string   | false    | Description of the issue, in markdown. Use multi-line with the `                                  |
+| description | n/a     | string   | false    | Description of the issue, in Markdown. Use multi-line with the `                                  |
 | milestone   | n/a     | string   | false    | Milestone to attach to the issue                                                                  |
 | project     | n/a     | Project  | false    | Project to attach to the issue                                                                    |
 | type        | n/a     | string   | false    | Issue type of the issue                                                                           |
@@ -225,32 +225,6 @@ issues:
 | --------- | ------- | ------ | -------------------------------------------------- |
 | title     | n/a     | string | Title of an opened project to attach this issue to |
 | status    | n/a     | string | Status of the issue in the project                 |
-
-# Usage
-
-This action is meant at being started manually (i.e. to instantly push a new
-label) and on schedule (i.e. to regularly check that all labels with the same
-name have the same color and description).
-
-```yaml
-name: Sync Labels
-
-on:
-  issues:
-    types:
-      - labeled
-
-jobs:
-  transfer:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Transfer issue
-        # Replace main by the release of your choice
-        uses: fgerthoffert/actions-issues-from-yaml@main
-        with:
-          token: YOUR_TOKEN
-          create_labels_if_missing: true
-```
 
 # How to contribute
 
