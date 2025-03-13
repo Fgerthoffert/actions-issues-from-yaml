@@ -6,6 +6,7 @@ const updateField = (
   variables: ConfigVariables[]
 ) => {
   const originalFieldValue = fieldValue
+  core.debug(`About to update field: ${field} - original value: ${fieldValue}`)
   if (fieldValue !== undefined) {
     for (const variable of variables) {
       fieldValue = fieldValue.replace(
