@@ -8,9 +8,9 @@ describe('addVariablesToIssues', () => {
 
   const issues = [
     {
-      title: 'My issue 1 - {{ var.sw_release }}',
+      title: 'My issue 1 - ${{ var.sw_release }}',
       repository: 'Org/repo',
-      description: 'Line 1\nLine 2 - {{ var.myOtherVar }}',
+      description: 'Line 1\nLine 2 - ${{ var.myOtherVar }}',
       milestone: 'milestone 1.2.3',
       type: 'Release',
       project: {
@@ -41,7 +41,7 @@ describe('addVariablesToIssues', () => {
   it('should handle issues without optional fields', () => {
     const minimalIssues = [
       {
-        title: 'My issue 2 - {{ var.sw_release }}',
+        title: 'My issue 2 - ${{ var.sw_release }}',
         repository: 'Org/repo',
         description: undefined,
         milestone: undefined,
