@@ -40592,7 +40592,8 @@ async function areProjectsValid(configProjects, gitHubProjects) {
 
 const updateField = (field, fieldValue, variables) => {
     const originalFieldValue = fieldValue;
-    if (field !== undefined) {
+    coreExports.debug(`About to update field: ${field} - original value: ${fieldValue}`);
+    if (fieldValue !== undefined) {
         for (const variable of variables) {
             fieldValue = fieldValue.replace(`{{ var.${variable.name} }}`, variable.value);
         }
