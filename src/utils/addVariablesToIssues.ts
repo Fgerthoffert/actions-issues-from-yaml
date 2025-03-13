@@ -10,7 +10,7 @@ const updateField = (
   if (fieldValue !== undefined) {
     for (const variable of variables) {
       fieldValue = fieldValue.replace(
-        `{{ var.${variable.name} }}`,
+        `\${{ var.${variable.name} }}`,
         variable.value
       )
     }
