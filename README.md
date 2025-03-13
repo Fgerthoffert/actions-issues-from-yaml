@@ -78,7 +78,7 @@ config:
     - name: sw_release
       value: 1.2.3
 issues:
-  - title: Release myApp v{{ var.sw_release }}
+  - title: Release myApp v${{ var.sw_release }}
     repository: MY_ORG/MY_REPO
     id: main-release
     description: |

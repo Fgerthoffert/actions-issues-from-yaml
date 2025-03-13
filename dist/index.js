@@ -38881,7 +38881,7 @@ const getFlatIssues = (issues, flatIssues) => {
 };
 const updateDescription = (field, issueIds) => {
     for (const issueId of issueIds) {
-        field = field.replace(`{{ id.${issueId.id} }}`, issueId.html_url);
+        field = field.replace(`\${{ id.${issueId.id} }}`, issueId.html_url);
     }
     return field;
 };
@@ -40595,7 +40595,7 @@ const updateField = (field, fieldValue, variables) => {
     coreExports.debug(`About to update field: ${field} - original value: ${fieldValue}`);
     if (fieldValue !== undefined) {
         for (const variable of variables) {
-            fieldValue = fieldValue.replace(`{{ var.${variable.name} }}`, variable.value);
+            fieldValue = fieldValue.replace(`\${{ var.${variable.name} }}`, variable.value);
         }
     }
     if (originalFieldValue !== fieldValue) {

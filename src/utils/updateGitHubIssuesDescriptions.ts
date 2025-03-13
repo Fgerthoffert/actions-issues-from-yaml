@@ -18,7 +18,7 @@ interface issueId {
 
 const updateDescription = (field: string, issueIds: issueId[]) => {
   for (const issueId of issueIds) {
-    field = field.replace(`{{ id.${issueId.id} }}`, issueId.html_url)
+    field = field.replace(`\${{ id.${issueId.id} }}`, issueId.html_url)
   }
   return field
 }
