@@ -40590,31 +40590,42 @@ async function areProjectsValid(configProjects, gitHubProjects) {
     return true;
 }
 
-const updateField = (field, variables) => {
-    for (const variable of variables) {
-        field = field.replace(`{{ var.${variable.name} }}`, variable.value);
+const updateField = (field, fieldValue, variables) => {
+    const originalFieldValue = fieldValue;
+    if (field !== undefined) {
+        for (const variable of variables) {
+            fieldValue = fieldValue.replace(`{{ var.${variable.name} }}`, variable.value);
+        }
     }
-    return field;
+    if (originalFieldValue !== fieldValue) {
+        coreExports.debug(`field: ${field} - value updated`);
+    }
+    else {
+        coreExports.debug(`field: ${field} - no value update needed`);
+    }
+    return fieldValue;
 };
 function addVariablesToIssues(issues, variables) {
     return issues.map((issue) => {
-        console.log(`Adding variables to issue: ${issue.title}`);
+        coreExports.info(`Adding variables to issue: ${issue.title}`);
         const updatedIssue = {
             ...issue,
-            title: updateField(issue.title, variables),
-            repository: updateField(issue.repository, variables),
+            title: updateField('issue.title', issue.title, variables),
+            repository: updateField('issue.repository', issue.repository, variables),
             description: issue.description
-                ? updateField(issue.description, variables)
+                ? updateField('issue.description', issue.description, variables)
                 : undefined,
             milestone: issue.milestone
-                ? updateField(issue.milestone, variables)
+                ? updateField('issue.milestone', issue.milestone, variables)
                 : undefined,
-            type: issue.type ? updateField(issue.type, variables) : undefined,
+            type: issue.type
+                ? updateField('issue.type', issue.type, variables)
+                : undefined,
             project: issue.project
                 ? {
-                    title: updateField(issue.project.title, variables),
+                    title: updateField('issue.project.title', issue.project.title, variables),
                     status: issue.project.status
-                        ? updateField(issue.project.status, variables)
+                        ? updateField('issue.project.status', issue.project.status, variables)
                         : undefined
                 }
                 : undefined,
@@ -40622,10 +40633,10 @@ function addVariablesToIssues(issues, variables) {
                 ? addVariablesToIssues(issue.children, variables)
                 : [],
             labels: issue.labels && issue.labels.length > 0
-                ? issue.labels.map((label) => updateField(label, variables))
+                ? issue.labels.map((label) => updateField('label', label, variables))
                 : [],
             assignees: issue.assignees && issue.assignees.length > 0
-                ? issue.assignees.map((assignee) => updateField(assignee, variables))
+                ? issue.assignees.map((assignee) => updateField('assignee', assignee, variables))
                 : []
         };
         return updatedIssue;
