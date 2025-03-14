@@ -43,7 +43,6 @@ The following issue fields are supported:
 - description (body)
 - milestone
 - project (one project only),
-- Status of the issue card in the provided project
 - issue type
 - labels
 
@@ -168,7 +167,6 @@ Variables are replaced on the following issue fields:
 - milestone
 - type
 - project title
-- project status
 - labels
 - assignees
 
@@ -224,7 +222,6 @@ issues:
 | Parameter | Default | Type   | Description                                        |
 | --------- | ------- | ------ | -------------------------------------------------- |
 | title     | n/a     | string | Title of an opened project to attach this issue to |
-| status    | n/a     | string | Status of the issue in the project                 |
 
 # How to contribute
 
