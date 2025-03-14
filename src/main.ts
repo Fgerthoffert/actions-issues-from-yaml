@@ -43,7 +43,6 @@ export async function run(): Promise<void> {
 
     // Modify the issues with content from the variables
     const issues = addVariablesToIssues(config.issues, config.config.variables)
-    console.log(issues)
 
     // Confirm all repos listed in the YAML file do exist
     // and are accessible by the provided user token
@@ -93,7 +92,8 @@ export async function run(): Promise<void> {
     const submittedIssues = await createGitHubIssues(
       issues,
       gitHubMilestones,
-      gitHubIssueTypes
+      gitHubIssueTypes,
+      gitHubProjects
     )
 
     await updateGitHubIssuesDescriptions(submittedIssues)

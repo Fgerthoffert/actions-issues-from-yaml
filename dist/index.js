@@ -38768,15 +38768,86 @@ function configListProjects(issues) {
     return projects;
 }
 
+const sleep = (milliseconds) => {
+    return new Promise((resolve) => {
+        if (isNaN(milliseconds)) {
+            throw new Error('milliseconds not a number');
+        }
+        setTimeout(() => resolve('done!'), milliseconds);
+    });
+};
+const attachTypeToIssue = async (issueId, issueTypeId) => {
+    const inputGithubToken = coreExports.getInput('token');
+    const octokit = githubExports.getOctokit(inputGithubToken);
+    const attachedIssueType = await octokit.graphql(`
+    mutation {
+        updateIssue(input: {
+          id: "${issueId}",
+          issueTypeId: "${issueTypeId}",
+        }) {
+          issue {
+            id
+            url
+          }                     
+        }
+      }
+  `, {
+        // See doc about issue types: https://github.com/orgs/community/discussions/139933
+        headers: {
+            'GraphQL-Features': 'issue_types'
+        }
+    });
+    return attachedIssueType.updateIssue;
+};
+const addChildrenToIssue = async (issueId, subIssueId) => {
+    const inputGithubToken = coreExports.getInput('token');
+    const octokit = githubExports.getOctokit(inputGithubToken);
+    const addSubIssue = await octokit.graphql(`
+    mutation {
+        addSubIssue(input: {
+          issueId: "${issueId}",
+          subIssueId: "${subIssueId}",
+        }) {
+          issue {
+            id
+            url
+          }
+          subIssue {
+            id
+            url
+          }                      
+        }
+      }
+  `);
+    return addSubIssue.addSubIssue;
+};
+const addProjectToIssue = async (issueId, projectId) => {
+    const inputGithubToken = coreExports.getInput('token');
+    const octokit = githubExports.getOctokit(inputGithubToken);
+    const addProject = await octokit.graphql(`
+    mutation {
+        addProjectV2ItemById(input: {
+          contentId: "${issueId}",
+          projectId: "${projectId}",
+        }) {
+          clientMutationId
+          item {
+            id
+          }                     
+        }
+      }
+  `);
+    return addProject.addProjectV2ItemById;
+};
 // This function checks if the provided repositories do exist
-async function createGitHubIssues(issues, milestones, issueTypes) {
+async function createGitHubIssues(issues, milestones, issueTypes, githubProjects) {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
     const createdIssues = [];
     for (const issue of issues) {
         let childrenIssues = [];
         if (issue.children) {
-            childrenIssues = await createGitHubIssues(issue.children, milestones, issueTypes);
+            childrenIssues = await createGitHubIssues(issue.children, milestones, issueTypes, githubProjects);
         }
         const [owner, repo] = issue.repository.split('/');
         try {
@@ -38800,52 +38871,63 @@ async function createGitHubIssues(issues, milestones, issueTypes) {
                     const issueType = issueTypes.find((it) => it.name === issue.type &&
                         it.repository.full_name === issue.repository);
                     if (issueType !== undefined) {
-                        const attachIssueType = await octokit.graphql(`
-              mutation {
-                  updateIssue(input: {
-                    id: "${createdIssue.data.node_id}",
-                    issueTypeId: "${issueType.id}",
-                  }) {
-                    issue {
-                      id
-                      url
-                    }                     
-                  }
-                }
-            `, {
-                            // See doc about issue types: https://github.com/orgs/community/discussions/139933
-                            headers: {
-                                'GraphQL-Features': 'issue_types'
+                        let errorRetry = 0;
+                        while (errorRetry < 3) {
+                            const attachIssueType = await attachTypeToIssue(createdIssue.data.node_id, issueType.id);
+                            if (attachIssueType !== undefined && attachIssueType !== null) {
+                                coreExports.info(`Attached type ${issue.type} to issue ${createdIssue.data.html_url}`);
+                                break;
                             }
-                        });
-                        coreExports.info(`Attached type ${issue.type} to issue ${attachIssueType.updateIssue.issue.url}`);
+                            else {
+                                coreExports.info(`Unable to attach type ${issue.type} to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
+                                await sleep(250);
+                                errorRetry++;
+                            }
+                        }
                     }
                 }
                 else {
                     coreExports.info(`Issue type not provided, skipping`);
                 }
+                if (issue.project !== undefined) {
+                    const issueProject = githubProjects.find((it) => issue.project !== undefined && it.title === issue.project.title);
+                    if (issueProject !== undefined) {
+                        let errorRetry = 0;
+                        while (errorRetry < 3) {
+                            const attachProject = await addProjectToIssue(createdIssue.data.node_id, issueProject.id);
+                            if (attachProject !== undefined && attachProject !== null) {
+                                coreExports.info(`Attached project ${issue.project.title} to issue ${createdIssue.data.html_url}`);
+                                break;
+                            }
+                            else {
+                                coreExports.info(`Unable to attach project ${issue.project.title} to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
+                                await sleep(250);
+                                errorRetry++;
+                            }
+                        }
+                    }
+                }
+                else {
+                    coreExports.info(`Issue project not provided, skipping`);
+                }
                 if (childrenIssues.length > 0) {
                     // If there are children issues, creating the sub issue link
                     for (const childIssue of childrenIssues) {
                         if (childIssue.github !== undefined) {
-                            const addSubIssue = await octokit.graphql(`
-                mutation {
-                    addSubIssue(input: {
-                      issueId: "${createdIssue.data.node_id}",
-                      subIssueId: "${childIssue.github.node_id}",
-                    }) {
-                      issue {
-                        id
-                        url
-                      }
-                      subIssue {
-                        id
-                        url
-                      }                      
-                    }
-                  }
-              `);
-                            coreExports.info(`Link to sub issue ${addSubIssue.addSubIssue.subIssue.url} created in issue ${addSubIssue.addSubIssue.issue.url}`);
+                            let errorRetry = 0;
+                            while (errorRetry < 3) {
+                                const attachChildIssue = await addChildrenToIssue(createdIssue.data.node_id, childIssue.github.node_id);
+                                if (attachChildIssue !== undefined &&
+                                    attachChildIssue !== null) {
+                                    coreExports.info(`Link to sub issue ID ${childIssue.github.node_id} created in issue ${createdIssue.data.node_id}`);
+                                    break;
+                                }
+                                else {
+                                    coreExports.info(`Unable to attach type ${issue.type} to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
+                                    await sleep(250);
+                                    errorRetry++;
+                                }
+                            }
                         }
                     }
                     createdIssues.push({
@@ -40660,7 +40742,6 @@ async function run() {
         const config = loadActionConfig(inputYamlConfig);
         // Modify the issues with content from the variables
         const issues = addVariablesToIssues(config.issues, config.config.variables);
-        console.log(issues);
         // Confirm all repos listed in the YAML file do exist
         // and are accessible by the provided user token
         const configRepos = configListRepos(issues);
@@ -40695,7 +40776,7 @@ async function run() {
             coreExports.setFailed(`Missing repositories detected, aborted issue creation.`);
             return;
         }
-        const submittedIssues = await createGitHubIssues(issues, gitHubMilestones, gitHubIssueTypes);
+        const submittedIssues = await createGitHubIssues(issues, gitHubMilestones, gitHubIssueTypes, gitHubProjects);
         await updateGitHubIssuesDescriptions(submittedIssues);
         coreExports.info('Action completed successfully');
         coreExports.setOutput('issues', JSON.stringify(submittedIssues));
