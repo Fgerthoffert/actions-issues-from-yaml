@@ -8,7 +8,7 @@ export async function getGitHubRepos(
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
 
-  core.info(`Fetching repository data from GitHub`)
+  core.info(`Repositories: Retrieving repositories data from GitHub`)
   const gitHubRepos: GitHubRepo[] = []
   for (const repo of reposList) {
     const [owner, repoName] = repo.split('/')
@@ -36,5 +36,7 @@ export async function getGitHubRepos(
       core.warning(`Error: ${(error as Error).message}`)
     }
   }
+  core.info(`Repositories: Unique repos found in GitHub: ${gitHubRepos.length}`)
+
   return gitHubRepos
 }

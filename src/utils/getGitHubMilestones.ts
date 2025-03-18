@@ -11,7 +11,7 @@ export async function getGitHubMilestones(
   const MyOctokit = Octokit.plugin(paginateRest)
   const octokit = new MyOctokit({ auth: inputGithubToken })
 
-  core.info(`Fetching existing milestones from GitHub`)
+  core.info(`Milestones: Retrieving existing milestones from GitHub`)
   const gitHubMilestones: GitHubMilestone[] = []
   for (const repo of githubRepos) {
     const [owner, repoName] = repo.full_name.split('/')
@@ -24,7 +24,9 @@ export async function getGitHubMilestones(
           per_page: 100
         }
       )
-      core.info(`${repo.full_name}: ${milestones.length} milestones found`)
+      core.info(
+        `Milestones: ${repo.full_name}: ${milestones.length} milestones found`
+      )
       for (const milestone of milestones) {
         gitHubMilestones.push({ ...milestone, repository: repo })
       }
@@ -33,5 +35,8 @@ export async function getGitHubMilestones(
       core.warning(`Error: ${(error as Error).message}`)
     }
   }
+  core.info(
+    `Milestones: Unique milestones found in GitHub: ${gitHubMilestones.length}`
+  )
   return gitHubMilestones
 }
