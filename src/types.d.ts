@@ -5,7 +5,6 @@ interface ConfigMilestone {
 
 interface ConfigProject {
   title: string
-  status: string
   organization: string
 }
 
@@ -24,7 +23,6 @@ interface ConfigIssue {
   project:
     | {
         title: string
-        status: string | undefined
       }
     | undefined
   labels: string[]

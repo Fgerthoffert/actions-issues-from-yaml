@@ -31233,7 +31233,7 @@ var githubExports = requireGithub();
 async function getGitHubRepos(reposList) {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
-    coreExports.info(`Fetching repository data from GitHub`);
+    coreExports.info(`Repositories: Retrieving repositories data from GitHub`);
     const gitHubRepos = [];
     for (const repo of reposList) {
         const [owner, repoName] = repo.split('/');
@@ -31260,6 +31260,7 @@ async function getGitHubRepos(reposList) {
             coreExports.warning(`Error: ${error.message}`);
         }
     }
+    coreExports.info(`Repositories: Unique repos found in GitHub: ${gitHubRepos.length}`);
     return gitHubRepos;
 }
 
@@ -38692,81 +38693,129 @@ function loadActionConfig(inputYamlConfig) {
     return config;
 }
 
-function configListRepos(issues) {
+const getReposFromConfig = (issues) => {
     const repos = issues.reduce((acc, issue) => {
+        if (!acc.includes(issue.repository))
+            acc.push(issue.repository);
         if (issue.children) {
-            acc = [...acc, ...configListRepos(issue.children)];
+            const childrenRepos = getReposFromConfig(issue.children);
+            for (const repo of childrenRepos) {
+                if (!acc.includes(repo))
+                    acc.push(repo);
+            }
         }
-        if (acc.includes(issue.repository))
-            return acc;
-        return [...acc, issue.repository];
+        return acc;
     }, []);
-    coreExports.debug(`Unique repos found in configuration: ${repos.length}`);
-    coreExports.debug(JSON.stringify(repos));
     return repos;
-}
+};
+const configListRepos = (issues) => {
+    coreExports.info(`Repositories: Retrieving the list of repositories from configuration`);
+    const repos = getReposFromConfig(issues);
+    coreExports.info(`Repositories: Unique repos found in configuration: ${repos.length}`);
+    coreExports.debug(`Repositories: From config: ${JSON.stringify(repos)}`);
+    return repos;
+};
 
 // This goes down the configuration tree and returns a list of milestones
-function configListMilestones(issues) {
+const getMilestonesFromConfig = (issues) => {
     const milestones = issues.reduce((acc, issue) => {
+        if (issue.milestone !== undefined &&
+            !acc.find((a) => issue.milestone !== undefined &&
+                a.title === issue.milestone &&
+                a.repository === issue.repository))
+            acc.push({
+                title: issue.milestone,
+                repository: issue.repository
+            });
         if (issue.children) {
-            acc = [...acc, ...configListMilestones(issue.children)];
+            const childrenMilestones = getMilestonesFromConfig(issue.children);
+            for (const milestone of childrenMilestones) {
+                if (!acc.find((a) => a.title === milestone.title &&
+                    a.repository === milestone.repository)) {
+                    acc.push({
+                        title: issue.milestone,
+                        repository: issue.repository
+                    });
+                }
+            }
         }
-        if (issue.milestone === undefined)
-            return acc;
-        if (acc.find((m) => m.title === issue.milestone && m.repository === issue.repository))
-            return acc;
-        return [
-            ...acc,
-            { title: issue.milestone, repository: issue.repository }
-        ];
+        return acc;
     }, []);
     return milestones;
-}
+};
+const configListMilestones = (issues) => {
+    coreExports.info(`Milestones: Retrieving the list of milestones from configuration`);
+    const milestones = getMilestonesFromConfig(issues);
+    coreExports.info(`Milestones: Unique milestones found in configuration: ${milestones.length}`);
+    coreExports.debug(`Milestones: From config: ${JSON.stringify(milestones)}`);
+    return milestones;
+};
 
 // This goes down the configuration tree and returns a list of repositories
-function configListIssueTypes(issues) {
+function getIssueTypesFromConfig(issues) {
     const issueTypes = issues.reduce((acc, issue) => {
+        if (issue.type !== undefined &&
+            !acc.find((a) => issue.type !== undefined &&
+                a.name === issue.type &&
+                a.repository === issue.repository))
+            acc.push({
+                name: issue.type,
+                repository: issue.repository
+            });
         if (issue.children) {
-            acc = [...acc, ...configListIssueTypes(issue.children)];
+            const childrenTypes = getIssueTypesFromConfig(issue.children);
+            for (const type of childrenTypes) {
+                if (!acc.find((a) => issue.type !== undefined &&
+                    a.name === type.name &&
+                    a.repository === type.repository)) {
+                    acc.push({
+                        name: type.name,
+                        repository: type.repository
+                    });
+                }
+            }
         }
-        if (issue.type === undefined)
-            return acc;
-        if (acc.find((m) => (m.name === issue.type && m.repository === issue.repository) ||
-            issue.type === undefined))
-            return acc;
-        return [
-            ...acc,
-            { name: issue.type, repository: issue.repository }
-        ];
+        return acc;
     }, []);
     return issueTypes;
 }
+const configListIssueTypes = (issues) => {
+    coreExports.info(`Issue types: Retrieving the list of issues types from configuration`);
+    const issueTypes = getIssueTypesFromConfig(issues);
+    coreExports.info(`Issue types: Unique issue Types found in configuration: ${issueTypes.length}`);
+    coreExports.info(`Issue Types: From config: ${JSON.stringify(issueTypes)}`);
+    return issueTypes;
+};
 
-// This goes down the configuration tree and returns a list of projects
-function configListProjects(issues) {
+const getProjectsFromConfig = (issues) => {
     const projects = issues.reduce((acc, issue) => {
-        if (issue.children) {
-            acc = [...acc, ...configListProjects(issue.children)];
-        }
-        if (issue.project === undefined)
-            return acc;
-        // Only add if the project does not already exist
-        if (acc.find((p) => issue.project &&
-            p.title === issue.project.title &&
-            p.organization === issue.repository.split('/')[0]))
-            return acc;
-        return [
-            ...acc,
-            {
+        if (issue.project !== undefined &&
+            !acc.find((a) => issue.project !== undefined && a.title === issue.project.title))
+            acc.push({
                 title: issue.project.title,
-                status: issue.project.status,
                 organization: issue.repository.split('/')[0]
+            });
+        if (issue.children) {
+            const childrenProjects = getProjectsFromConfig(issue.children);
+            for (const project of childrenProjects) {
+                if (!acc.find((a) => a.title === project.title))
+                    acc.push({
+                        title: project.title,
+                        organization: issue.repository.split('/')[0]
+                    });
             }
-        ];
+        }
+        return acc;
     }, []);
     return projects;
-}
+};
+const configListProjects = (issues) => {
+    coreExports.info(`Projects: Retrieving the list of projects from configuration`);
+    const projects = getProjectsFromConfig(issues);
+    coreExports.info(`Projects: Unique projects found in configuration: ${projects.length}`);
+    coreExports.debug(`Projects: From config: ${JSON.stringify(projects)}`);
+    return projects;
+};
 
 // This function checks if the provided repositories do exist
 async function createGitHubIssues(issues, milestones, issueTypes) {
@@ -40232,7 +40281,7 @@ async function getGitHubMilestones(githubRepos) {
     const inputGithubToken = coreExports.getInput('token');
     const MyOctokit = Octokit.plugin(paginateRest);
     const octokit = new MyOctokit({ auth: inputGithubToken });
-    coreExports.info(`Fetching existing milestones from GitHub`);
+    coreExports.info(`Milestones: Retrieving existing milestones from GitHub`);
     const gitHubMilestones = [];
     for (const repo of githubRepos) {
         const [owner, repoName] = repo.full_name.split('/');
@@ -40242,7 +40291,7 @@ async function getGitHubMilestones(githubRepos) {
                 repo: repoName,
                 per_page: 100
             });
-            coreExports.info(`${repo.full_name}: ${milestones.length} milestones found`);
+            coreExports.info(`Milestones: ${repo.full_name}: ${milestones.length} milestones found`);
             for (const milestone of milestones) {
                 gitHubMilestones.push({ ...milestone, repository: repo });
             }
@@ -40252,6 +40301,7 @@ async function getGitHubMilestones(githubRepos) {
             coreExports.warning(`Error: ${error.message}`);
         }
     }
+    coreExports.info(`Milestones: Unique milestones found in GitHub: ${gitHubMilestones.length}`);
     return gitHubMilestones;
 }
 
@@ -40259,6 +40309,7 @@ async function getGitHubMilestones(githubRepos) {
 async function getGitHubIssueTypes(reposList) {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
+    coreExports.info(`Issue types: Retrieving existing issue types from GitHub`);
     const gitHubIssueTypes = [];
     for (const repository of reposList) {
         const repoIssueTypes = await octokit.graphql(`
@@ -40290,6 +40341,7 @@ async function getGitHubIssueTypes(reposList) {
             }
         }
     }
+    coreExports.info(`Issue types: Unique issue Types found in GitHub: ${gitHubIssueTypes.length}`);
     return gitHubIssueTypes;
 }
 
@@ -40479,10 +40531,10 @@ async function getGitHubProjects(reposList) {
             gitHubOrgs.push(repo.organization);
         }
     }
-    coreExports.info(`Fetching existing projects from GitHub`);
+    coreExports.info(`Projects: Retrieving existing projects from GitHub`);
     const gitHubProjects = [];
     for (const org of gitHubOrgs) {
-        coreExports.info(`Processing org: ${org.login}`);
+        coreExports.info(`Projects: Processing org: ${org.login}`);
         const projects = await octokit.graphql(`
       query($orgId: ID! $cursor: String) {
         node(id: $orgId) {
@@ -40512,6 +40564,7 @@ async function getGitHubProjects(reposList) {
             }
         }
     }
+    coreExports.info(`Projects: Unique projects found in GitHub: ${gitHubProjects.length}`);
     return gitHubProjects;
 }
 
@@ -40624,10 +40677,7 @@ function addVariablesToIssues(issues, variables) {
                 : undefined,
             project: issue.project
                 ? {
-                    title: updateField('issue.project.title', issue.project.title, variables),
-                    status: issue.project.status
-                        ? updateField('issue.project.status', issue.project.status, variables)
-                        : undefined
+                    title: updateField('issue.project.title', issue.project.title, variables)
                 }
                 : undefined,
             children: issue.children && issue.children.length > 0
@@ -40687,6 +40737,7 @@ async function run() {
             return;
         }
         // Fetch the list of milestones once more since some might have been created in the previous step
+        coreExports.info(`Refreshing the list of milestones in GitHub (some might have been created in the previous step)`);
         gitHubMilestones = await getGitHubMilestones(gitHubRepos);
         // Fetch the list of projects configured in the YAML file
         const configProjects = configListProjects(issues);

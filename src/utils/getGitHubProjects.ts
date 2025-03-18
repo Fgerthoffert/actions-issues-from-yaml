@@ -17,10 +17,10 @@ export async function getGitHubProjects(
     }
   }
 
-  core.info(`Fetching existing projects from GitHub`)
+  core.info(`Projects: Retrieving existing projects from GitHub`)
   const gitHubProjects: GitHubProject[] = []
   for (const org of gitHubOrgs) {
-    core.info(`Processing org: ${org.login}`)
+    core.info(`Projects: Processing org: ${org.login}`)
     const projects = await octokit.graphql<{
       node: {
         projectsV2: {
@@ -63,5 +63,8 @@ export async function getGitHubProjects(
       }
     }
   }
+  core.info(
+    `Projects: Unique projects found in GitHub: ${gitHubProjects.length}`
+  )
   return gitHubProjects
 }

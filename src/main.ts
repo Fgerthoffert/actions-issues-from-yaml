@@ -80,6 +80,9 @@ export async function run(): Promise<void> {
     }
 
     // Fetch the list of milestones once more since some might have been created in the previous step
+    core.info(
+      `Refreshing the list of milestones in GitHub (some might have been created in the previous step)`
+    )
     gitHubMilestones = await getGitHubMilestones(gitHubRepos)
 
     // Fetch the list of projects configured in the YAML file

@@ -48,14 +48,7 @@ export function addVariablesToIssues(
               'issue.project.title',
               issue.project.title,
               variables
-            ),
-            status: issue.project.status
-              ? updateField(
-                  'issue.project.status',
-                  issue.project.status,
-                  variables
-                )
-              : undefined
+            )
           }
         : undefined,
       children:
