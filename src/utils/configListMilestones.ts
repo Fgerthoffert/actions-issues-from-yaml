@@ -1,24 +1,54 @@
+import * as core from '@actions/core'
+
 // This goes down the configuration tree and returns a list of milestones
-export function configListMilestones(issues: ConfigIssue[]): ConfigMilestone[] {
+const getMilestonesFromConfig = (issues: ConfigIssue[]): ConfigMilestone[] => {
   const milestones = issues.reduce(
     (acc: ConfigMilestone[], issue: ConfigIssue) => {
-      if (issue.children) {
-        acc = [...acc, ...configListMilestones(issue.children)]
-      }
-      if (issue.milestone === undefined) return acc
       if (
-        acc.find(
-          (m: ConfigMilestone) =>
-            m.title === issue.milestone && m.repository === issue.repository
+        issue.milestone !== undefined &&
+        !acc.find(
+          (a) =>
+            issue.milestone !== undefined &&
+            a.title === issue.milestone &&
+            a.repository === issue.repository
         )
       )
-        return acc
-      return [
-        ...acc,
-        { title: issue.milestone as string, repository: issue.repository }
-      ]
+        acc.push({
+          title: issue.milestone as string,
+          repository: issue.repository
+        })
+      if (issue.children) {
+        const childrenMilestones = getMilestonesFromConfig(issue.children)
+        for (const milestone of childrenMilestones) {
+          if (
+            !acc.find(
+              (a) =>
+                a.title === milestone.title &&
+                a.repository === milestone.repository
+            )
+          ) {
+            acc.push({
+              title: issue.milestone as string,
+              repository: issue.repository
+            })
+          }
+        }
+      }
+      return acc
     },
     []
   )
+  return milestones
+}
+
+export const configListMilestones = (
+  issues: ConfigIssue[]
+): ConfigMilestone[] => {
+  core.info(`Milestones: Retrieving the list of milestones from configuration`)
+  const milestones = getMilestonesFromConfig(issues)
+  core.info(
+    `Milestones: Unique milestones found in configuration: ${milestones.length}`
+  )
+  core.debug(`Milestones: From config: ${JSON.stringify(milestones)}`)
   return milestones
 }

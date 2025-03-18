@@ -8,6 +8,8 @@ export async function getGitHubIssueTypes(
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
 
+  core.info(`Issue types: Retrieving existing issue types from GitHub`)
+
   const gitHubIssueTypes: GitHubIssueType[] = []
   for (const repository of reposList) {
     const repoIssueTypes = await octokit.graphql<{
@@ -58,5 +60,8 @@ export async function getGitHubIssueTypes(
       }
     }
   }
+  core.info(
+    `Issue types: Unique issue Types found in GitHub: ${gitHubIssueTypes.length}`
+  )
   return gitHubIssueTypes
 }
