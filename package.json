@@ -38,10 +38,10 @@
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@octokit/core": "^6.1.4",
+    "@octokit/core": "^6.1.5",
     "@octokit/plugin-paginate-graphql": "^5.2.4",
     "@octokit/plugin-paginate-rest": "^11.4.3",
-    "yaml": "^2.7.0"
+    "yaml": "^2.7.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.7",
