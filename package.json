@@ -40,7 +40,7 @@
     "@actions/core": "^1.11.1",
     "@octokit/core": "^6.1.4",
     "@octokit/plugin-paginate-graphql": "^5.2.4",
-    "@octokit/plugin-paginate-rest": "^11.4.3",
+    "@octokit/plugin-paginate-rest": "^13.0.1",
     "yaml": "^2.7.0"
   },
   "devDependencies": {
