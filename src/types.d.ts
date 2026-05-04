@@ -13,6 +13,19 @@ interface ConfigIssueType {
   repository: string
 }
 
+type IssueRelationshipType =
+  | 'BLOCKS'
+  | 'BLOCKED_BY'
+  | 'CLONES'
+  | 'IS_CLONED_BY'
+  | 'DUPLICATE_OF'
+  | 'HAS_DUPLICATE'
+
+interface ConfigIssueRelationship {
+  type: IssueRelationshipType
+  issueId: string
+}
+
 interface ConfigIssue {
   title: string
   repository: string
@@ -28,6 +41,7 @@ interface ConfigIssue {
   labels: string[]
   assignees: string[]
   children: ConfigIssue[]
+  relationships: ConfigIssueRelationship[] | undefined
   github: GitHubIssue | undefined
 }
 

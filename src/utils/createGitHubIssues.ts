@@ -76,6 +76,42 @@ const addChildrenToIssue = async (issueId: string, subIssueId: string) => {
   return addSubIssue.addSubIssue
 }
 
+const addRelationshipToIssue = async (
+  issueId: string,
+  relatedIssueId: string,
+  relationshipType: IssueRelationshipType
+) => {
+  const inputGithubToken = core.getInput('token')
+  const octokit = github.getOctokit(inputGithubToken)
+
+  const addRelationship = await octokit.graphql<{
+    addSubIssue: never
+    createIssueRelationship: {
+      relationship: {
+        sourceIssue: { id: string }
+        targetIssue: { id: string }
+        type: string
+      }
+    }
+  }>(`
+    mutation {
+        createIssueRelationship(input: {
+          sourceIssueId: "${issueId}",
+          targetIssueId: "${relatedIssueId}",
+          relationshipType: ${relationshipType},
+        }) {
+          relationship {
+            sourceIssue { id }
+            targetIssue { id }
+            type
+          }
+        }
+      }
+  `)
+
+  return addRelationship.createIssueRelationship
+}
+
 const addProjectToIssue = async (issueId: string, projectId: string) => {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
@@ -205,6 +241,33 @@ export async function createGitHubIssues(
           }
         } else {
           core.info(`Issue project not provided, skipping`)
+        }
+
+        if (issue.relationships && issue.relationships.length > 0) {
+          for (const relationship of issue.relationships) {
+            let errorRetry = 0
+            while (errorRetry < 3) {
+              const attachRelationship = await addRelationshipToIssue(
+                createdIssue.data.node_id,
+                relationship.issueId,
+                relationship.type
+              )
+              if (attachRelationship !== undefined && attachRelationship !== null) {
+                core.info(
+                  `Added relationship ${relationship.type} to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`
+                )
+                break
+              } else {
+                core.info(
+                  `Unable to add relationship ${relationship.type} to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`
+                )
+                await sleep(250)
+                errorRetry++
+              }
+            }
+          }
+        } else {
+          core.info(`Issue relationships not provided, skipping`)
         }
 
         if (childrenIssues.length > 0) {
