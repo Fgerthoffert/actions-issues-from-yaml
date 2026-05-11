@@ -13,16 +13,7 @@ interface ConfigIssueType {
   repository: string
 }
 
-type IssueRelationshipType =
-  | 'BLOCKS'
-  | 'BLOCKED_BY'
-  | 'CLONES'
-  | 'IS_CLONED_BY'
-  | 'DUPLICATE_OF'
-  | 'HAS_DUPLICATE'
-
 interface ConfigIssueRelationship {
-  type: IssueRelationshipType
   issueId: string
 }
 

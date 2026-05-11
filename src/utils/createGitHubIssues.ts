@@ -76,40 +76,28 @@ const addChildrenToIssue = async (issueId: string, subIssueId: string) => {
   return addSubIssue.addSubIssue
 }
 
-const addRelationshipToIssue = async (
-  issueId: string,
-  relatedIssueId: string,
-  relationshipType: IssueRelationshipType
-) => {
+const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
 
-  const addRelationship = await octokit.graphql<{
-    addSubIssue: never
-    createIssueRelationship: {
-      relationship: {
-        sourceIssue: { id: string }
-        targetIssue: { id: string }
-        type: string
-      }
+  const addBlocked = await octokit.graphql<{
+    addBlockedBy: {
+      issue: { id: string }
+      blockedBy: { id: string }
     }
   }>(`
     mutation {
-        createIssueRelationship(input: {
-          sourceIssueId: "${issueId}",
-          targetIssueId: "${relatedIssueId}",
-          relationshipType: ${relationshipType},
+        addBlockedBy(input: {
+          issueId: "${issueId}",
+          blockedByIssueId: "${blockedByIssueId}",
         }) {
-          relationship {
-            sourceIssue { id }
-            targetIssue { id }
-            type
-          }
+          issue { id }
+          blockedBy { id }
         }
       }
   `)
 
-  return addRelationship.createIssueRelationship
+  return addBlocked.addBlockedBy
 }
 
 const addProjectToIssue = async (issueId: string, projectId: string) => {
@@ -247,22 +235,21 @@ export async function createGitHubIssues(
           for (const relationship of issue.relationships) {
             let errorRetry = 0
             while (errorRetry < 3) {
-              const attachRelationship = await addRelationshipToIssue(
+              const attachRelationship = await addBlockedBy(
                 createdIssue.data.node_id,
-                relationship.issueId,
-                relationship.type
+                relationship.issueId
               )
               if (
                 attachRelationship !== undefined &&
                 attachRelationship !== null
               ) {
                 core.info(
-                  `Added relationship ${relationship.type} to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`
+                  `Added BLOCKED_BY relationship to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`
                 )
                 break
               } else {
                 core.info(
-                  `Unable to add relationship ${relationship.type} to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`
+                  `Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`
                 )
                 await sleep(250)
                 errorRetry++

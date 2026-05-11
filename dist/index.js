@@ -38870,25 +38870,21 @@ const addChildrenToIssue = async (issueId, subIssueId) => {
   `);
     return addSubIssue.addSubIssue;
 };
-const addRelationshipToIssue = async (issueId, relatedIssueId, relationshipType) => {
+const addBlockedBy = async (issueId, blockedByIssueId) => {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
-    const addRelationship = await octokit.graphql(`
+    const addBlocked = await octokit.graphql(`
     mutation {
-        createIssueRelationship(input: {
-          sourceIssueId: "${issueId}",
-          targetIssueId: "${relatedIssueId}",
-          relationshipType: ${relationshipType},
+        addBlockedBy(input: {
+          issueId: "${issueId}",
+          blockedByIssueId: "${blockedByIssueId}",
         }) {
-          relationship {
-            sourceIssue { id }
-            targetIssue { id }
-            type
-          }
+          issue { id }
+          blockedBy { id }
         }
       }
   `);
-    return addRelationship.createIssueRelationship;
+    return addBlocked.addBlockedBy;
 };
 const addProjectToIssue = async (issueId, projectId) => {
     const inputGithubToken = coreExports.getInput('token');
@@ -38983,14 +38979,14 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                     for (const relationship of issue.relationships) {
                         let errorRetry = 0;
                         while (errorRetry < 3) {
-                            const attachRelationship = await addRelationshipToIssue(createdIssue.data.node_id, relationship.issueId, relationship.type);
+                            const attachRelationship = await addBlockedBy(createdIssue.data.node_id, relationship.issueId);
                             if (attachRelationship !== undefined &&
                                 attachRelationship !== null) {
-                                coreExports.info(`Added relationship ${relationship.type} to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`);
+                                coreExports.info(`Added BLOCKED_BY relationship to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`);
                                 break;
                             }
                             else {
-                                coreExports.info(`Unable to add relationship ${relationship.type} to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
+                                coreExports.info(`Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
                                 await sleep(250);
                                 errorRetry++;
                             }
