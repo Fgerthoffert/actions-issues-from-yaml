@@ -38975,8 +38975,8 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                 else {
                     coreExports.info(`Issue project not provided, skipping`);
                 }
-                if (issue.relationships && issue.relationships.length > 0) {
-                    for (const relationship of issue.relationships) {
+                if (issue.blockedByIssueId && issue.blockedByIssueId.length > 0) {
+                    for (const relationship of issue.blockedByIssueId) {
                         let errorRetry = 0;
                         while (errorRetry < 3) {
                             const attachRelationship = await addBlockedBy(createdIssue.data.node_id, relationship.issueId);
@@ -38994,7 +38994,7 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                     }
                 }
                 else {
-                    coreExports.info(`Issue relationships not provided, skipping`);
+                    coreExports.info(`Issue blockedByIssueId not provided, skipping`);
                 }
                 if (childrenIssues.length > 0) {
                     // If there are children issues, creating the sub issue link

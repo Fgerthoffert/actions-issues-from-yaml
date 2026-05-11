@@ -231,8 +231,8 @@ export async function createGitHubIssues(
           core.info(`Issue project not provided, skipping`)
         }
 
-        if (issue.relationships && issue.relationships.length > 0) {
-          for (const relationship of issue.relationships) {
+        if (issue.blockedByIssueId && issue.blockedByIssueId.length > 0) {
+          for (const relationship of issue.blockedByIssueId) {
             let errorRetry = 0
             while (errorRetry < 3) {
               const attachRelationship = await addBlockedBy(
@@ -257,7 +257,7 @@ export async function createGitHubIssues(
             }
           }
         } else {
-          core.info(`Issue relationships not provided, skipping`)
+          core.info(`Issue blockedByIssueId not provided, skipping`)
         }
 
         if (childrenIssues.length > 0) {

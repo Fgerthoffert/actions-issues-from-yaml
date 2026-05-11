@@ -13,10 +13,6 @@ interface ConfigIssueType {
   repository: string
 }
 
-interface ConfigIssueRelationship {
-  issueId: string
-}
-
 interface ConfigIssue {
   title: string
   repository: string
@@ -32,7 +28,7 @@ interface ConfigIssue {
   labels: string[]
   assignees: string[]
   children: ConfigIssue[]
-  relationships: ConfigIssueRelationship[] | undefined
+  blockedByIssueId: string
   github: GitHubIssue | undefined
 }
 
