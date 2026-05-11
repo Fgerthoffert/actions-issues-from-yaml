@@ -252,7 +252,10 @@ export async function createGitHubIssues(
                 relationship.issueId,
                 relationship.type
               )
-              if (attachRelationship !== undefined && attachRelationship !== null) {
+              if (
+                attachRelationship !== undefined &&
+                attachRelationship !== null
+              ) {
                 core.info(
                   `Added relationship ${relationship.type} to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`
                 )
