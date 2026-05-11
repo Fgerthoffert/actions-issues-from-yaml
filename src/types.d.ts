@@ -28,7 +28,7 @@ interface ConfigIssue {
   labels: string[]
   assignees: string[]
   children: ConfigIssue[]
-  blockedByIssueId: string
+  blockedBy: string | undefined
   github: GitHubIssue | undefined
 }
 

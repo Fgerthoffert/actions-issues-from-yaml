@@ -38877,8 +38877,9 @@ const addBlockedBy = async (issueId, blockedByIssueId) => {
     mutation {
         addBlockedBy(input: {
           issueId: "${issueId}",
-          blockedByIssueId: "${blockedByIssueId}",
+          blockingIssueId: "${blockedByIssueId}",
         }) {
+          clientMutationId
           issue { id }
           blockedBy { id }
         }
@@ -38975,26 +38976,23 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                 else {
                     coreExports.info(`Issue project not provided, skipping`);
                 }
-                if (issue.blockedByIssueId && issue.blockedByIssueId.length > 0) {
-                    for (const relationship of issue.blockedByIssueId) {
-                        let errorRetry = 0;
-                        while (errorRetry < 3) {
-                            const attachRelationship = await addBlockedBy(createdIssue.data.node_id, relationship.issueId);
-                            if (attachRelationship !== undefined &&
-                                attachRelationship !== null) {
-                                coreExports.info(`Added BLOCKED_BY relationship to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`);
-                                break;
-                            }
-                            else {
-                                coreExports.info(`Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
-                                await sleep(250);
-                                errorRetry++;
-                            }
+                if (issue.blockedBy) {
+                    let errorRetry = 0;
+                    while (errorRetry < 3) {
+                        const createBlockedBy = await addBlockedBy(createdIssue.data.node_id, issue.blockedBy);
+                        if (createBlockedBy !== undefined && createBlockedBy !== null) {
+                            coreExports.info(`Added BLOCKED_BY relationship to issue ${issue.blockedBy} from issue ${createdIssue.data.html_url}`);
+                            break;
+                        }
+                        else {
+                            coreExports.info(`Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
+                            await sleep(250);
+                            errorRetry++;
                         }
                     }
                 }
                 else {
-                    coreExports.info(`Issue blockedByIssueId not provided, skipping`);
+                    coreExports.info(`Issue blockedBy not provided, skipping`);
                 }
                 if (childrenIssues.length > 0) {
                     // If there are children issues, creating the sub issue link

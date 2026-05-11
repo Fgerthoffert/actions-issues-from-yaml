@@ -89,8 +89,9 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
     mutation {
         addBlockedBy(input: {
           issueId: "${issueId}",
-          blockedByIssueId: "${blockedByIssueId}",
+          blockingIssueId: "${blockedByIssueId}",
         }) {
+          clientMutationId
           issue { id }
           blockedBy { id }
         }
@@ -231,33 +232,28 @@ export async function createGitHubIssues(
           core.info(`Issue project not provided, skipping`)
         }
 
-        if (issue.blockedByIssueId && issue.blockedByIssueId.length > 0) {
-          for (const relationship of issue.blockedByIssueId) {
-            let errorRetry = 0
-            while (errorRetry < 3) {
-              const attachRelationship = await addBlockedBy(
-                createdIssue.data.node_id,
-                relationship.issueId
+        if (issue.blockedBy) {
+          let errorRetry = 0
+          while (errorRetry < 3) {
+            const createBlockedBy = await addBlockedBy(
+              createdIssue.data.node_id,
+              issue.blockedBy
+            )
+            if (createBlockedBy !== undefined && createBlockedBy !== null) {
+              core.info(
+                `Added BLOCKED_BY relationship to issue ${issue.blockedBy} from issue ${createdIssue.data.html_url}`
               )
-              if (
-                attachRelationship !== undefined &&
-                attachRelationship !== null
-              ) {
-                core.info(
-                  `Added BLOCKED_BY relationship to issue ${relationship.issueId} from issue ${createdIssue.data.html_url}`
-                )
-                break
-              } else {
-                core.info(
-                  `Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`
-                )
-                await sleep(250)
-                errorRetry++
-              }
+              break
+            } else {
+              core.info(
+                `Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`
+              )
+              await sleep(250)
+              errorRetry++
             }
           }
         } else {
-          core.info(`Issue blockedByIssueId not provided, skipping`)
+          core.info(`Issue blockedBy not provided, skipping`)
         }
 
         if (childrenIssues.length > 0) {
