@@ -38881,7 +38881,7 @@ const addBlockedBy = async (issueId, blockedByIssueId) => {
         }) {
           clientMutationId
           issue { id }
-          blockedBy { id }
+          blockingIssue { id }
         }
       }
   `);

@@ -82,8 +82,9 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
 
   const addBlocked = await octokit.graphql<{
     addBlockedBy: {
+      clientMutationId: string
       issue: { id: string }
-      blockedBy: { id: string }
+      blockingIssue: { id: string }
     }
   }>(`
     mutation {
@@ -93,7 +94,7 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
         }) {
           clientMutationId
           issue { id }
-          blockedBy { id }
+          blockingIssue { id }
         }
       }
   `)
