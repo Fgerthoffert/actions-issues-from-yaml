@@ -1,6 +1,8 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
+const issueReferencePattern = /^\$\{\{\s*id\.([^\s}]+)\s*\}\}$/
+
 const sleep = (milliseconds: number): Promise<string> => {
   return new Promise((resolve) => {
     if (isNaN(milliseconds)) {
@@ -102,6 +104,18 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
   return addBlocked.addBlockedBy
 }
 
+export const resolveBlockedByIssueId = (
+  blockedBy: string,
+  createdIssueIdsByConfigId: Map<string, string>
+): string | undefined => {
+  const matchedReference = blockedBy.match(issueReferencePattern)
+  if (!matchedReference) {
+    return blockedBy
+  }
+
+  return createdIssueIdsByConfigId.get(matchedReference[1])
+}
+
 const addProjectToIssue = async (issueId: string, projectId: string) => {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
@@ -133,7 +147,8 @@ export async function createGitHubIssues(
   issues: ConfigIssue[],
   milestones: GitHubMilestone[],
   issueTypes: GitHubIssueType[],
-  githubProjects: GitHubProject[]
+  githubProjects: GitHubProject[],
+  createdIssueIdsByConfigId: Map<string, string> = new Map<string, string>()
 ): Promise<ConfigIssue[]> {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
@@ -146,7 +161,8 @@ export async function createGitHubIssues(
         issue.children,
         milestones,
         issueTypes,
-        githubProjects
+        githubProjects,
+        createdIssueIdsByConfigId
       )
     }
     const [owner, repo] = issue.repository.split('/')
@@ -171,6 +187,10 @@ export async function createGitHubIssues(
           assignees: issue.assignees
         })
         core.info(`Created issue: ${createdIssue.data.html_url}`)
+
+        if (issue.id !== undefined) {
+          createdIssueIdsByConfigId.set(issue.id, createdIssue.data.node_id)
+        }
 
         if (issue.type) {
           const issueType = issueTypes.find(
@@ -234,15 +254,25 @@ export async function createGitHubIssues(
         }
 
         if (issue.blockedBy) {
+          const blockedByIssueId = resolveBlockedByIssueId(
+            issue.blockedBy,
+            createdIssueIdsByConfigId
+          )
+          if (blockedByIssueId === undefined) {
+            throw new Error(
+              `Unable to resolve blockedBy reference ${issue.blockedBy} for issue ${issue.title}`
+            )
+          }
+
           let errorRetry = 0
           while (errorRetry < 3) {
             const createBlockedBy = await addBlockedBy(
               createdIssue.data.node_id,
-              issue.blockedBy
+              blockedByIssueId
             )
             if (createBlockedBy !== undefined && createBlockedBy !== null) {
               core.info(
-                `Added BLOCKED_BY relationship to issue ${issue.blockedBy} from issue ${createdIssue.data.html_url}`
+                `Added BLOCKED_BY relationship to issue ${blockedByIssueId} from issue ${createdIssue.data.html_url}`
               )
               break
             } else {
