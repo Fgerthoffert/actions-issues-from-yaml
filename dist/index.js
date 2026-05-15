@@ -38817,6 +38817,7 @@ const configListProjects = (issues) => {
     return projects;
 };
 
+const issueReferencePattern = /^\$\{\{\s*id\.([^\s}]+)\s*\}\}$/;
 const sleep = (milliseconds) => {
     return new Promise((resolve) => {
         if (isNaN(milliseconds)) {
@@ -38887,6 +38888,13 @@ const addBlockedBy = async (issueId, blockedByIssueId) => {
   `);
     return addBlocked.addBlockedBy;
 };
+const resolveBlockedByIssueId = (blockedBy, createdIssueIdsByConfigId) => {
+    const matchedReference = blockedBy.match(issueReferencePattern);
+    if (!matchedReference) {
+        return blockedBy;
+    }
+    return createdIssueIdsByConfigId.get(matchedReference[1]);
+};
 const addProjectToIssue = async (issueId, projectId) => {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
@@ -38906,14 +38914,14 @@ const addProjectToIssue = async (issueId, projectId) => {
     return addProject.addProjectV2ItemById;
 };
 // This function checks if the provided repositories do exist
-async function createGitHubIssues(issues, milestones, issueTypes, githubProjects) {
+async function createGitHubIssues(issues, milestones, issueTypes, githubProjects, createdIssueIdsByConfigId = new Map()) {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
     const createdIssues = [];
     for (const issue of issues) {
         let childrenIssues = [];
         if (issue.children) {
-            childrenIssues = await createGitHubIssues(issue.children, milestones, issueTypes, githubProjects);
+            childrenIssues = await createGitHubIssues(issue.children, milestones, issueTypes, githubProjects, createdIssueIdsByConfigId);
         }
         const [owner, repo] = issue.repository.split('/');
         try {
@@ -38933,6 +38941,9 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                     assignees: issue.assignees
                 });
                 coreExports.info(`Created issue: ${createdIssue.data.html_url}`);
+                if (issue.id !== undefined) {
+                    createdIssueIdsByConfigId.set(issue.id, createdIssue.data.node_id);
+                }
                 if (issue.type) {
                     const issueType = issueTypes.find((it) => it.name === issue.type &&
                         it.repository.full_name === issue.repository);
@@ -38977,11 +38988,15 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                     coreExports.info(`Issue project not provided, skipping`);
                 }
                 if (issue.blockedBy) {
+                    const blockedByIssueId = resolveBlockedByIssueId(issue.blockedBy, createdIssueIdsByConfigId);
+                    if (blockedByIssueId === undefined) {
+                        throw new Error(`Unable to resolve blockedBy reference ${issue.blockedBy} for issue ${issue.title}`);
+                    }
                     let errorRetry = 0;
                     while (errorRetry < 3) {
-                        const createBlockedBy = await addBlockedBy(createdIssue.data.node_id, issue.blockedBy);
+                        const createBlockedBy = await addBlockedBy(createdIssue.data.node_id, blockedByIssueId);
                         if (createBlockedBy !== undefined && createBlockedBy !== null) {
-                            coreExports.info(`Added BLOCKED_BY relationship to issue ${issue.blockedBy} from issue ${createdIssue.data.html_url}`);
+                            coreExports.info(`Added BLOCKED_BY relationship to issue ${blockedByIssueId} from issue ${createdIssue.data.html_url}`);
                             break;
                         }
                         else {
