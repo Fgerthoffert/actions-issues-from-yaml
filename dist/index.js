@@ -38888,6 +38888,15 @@ const addBlockedBy = async (issueId, blockedByIssueId) => {
   `);
     return addBlocked.addBlockedBy;
 };
+/**
+ * Resolves the `blockedBy` value from the YAML config into the GitHub node id
+ * expected by the `addBlockedBy` mutation.
+ *
+ * If the value is a direct id, it is returned unchanged. If it uses the
+ * `${{ id.someIssue }}` syntax, the helper looks up the matching node id from
+ * issues that were already created during this run. It returns `undefined`
+ * when a config reference is valid syntactically but has not been resolved yet.
+ */
 const resolveBlockedByIssueId = (blockedBy, createdIssueIdsByConfigId) => {
     const matchedReference = blockedBy.match(issueReferencePattern);
     if (!matchedReference) {
@@ -38987,10 +38996,10 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                 else {
                     coreExports.info(`Issue project not provided, skipping`);
                 }
-                if (issue.blockedBy) {
-                    const blockedByIssueId = resolveBlockedByIssueId(issue.blockedBy, createdIssueIdsByConfigId);
+                if (issue.blockedByIssueId) {
+                    const blockedByIssueId = resolveBlockedByIssueId(issue.blockedByIssueId, createdIssueIdsByConfigId);
                     if (blockedByIssueId === undefined) {
-                        throw new Error(`Unable to resolve blockedBy reference ${issue.blockedBy} for issue ${issue.title}`);
+                        throw new Error(`Unable to resolve blockedBy reference ${issue.blockedByIssueId} for issue ${issue.title}`);
                     }
                     let errorRetry = 0;
                     while (errorRetry < 3) {
