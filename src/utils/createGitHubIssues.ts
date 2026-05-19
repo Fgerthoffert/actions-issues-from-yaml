@@ -105,8 +105,8 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
 }
 
 /**
- * Resolves the `blockedBy` value from the YAML config into the GitHub node id
- * expected by the `addBlockedBy` mutation.
+ * Resolves the `blockedByIssueId` value from the YAML config into the GitHub
+ * node id expected by the `addBlockedBy` mutation.
  *
  * If the value is a direct id, it is returned unchanged. If it uses the
  * `${{ id.someIssue }}` syntax, the helper looks up the matching node id from
@@ -114,12 +114,12 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
  * when a config reference is valid syntactically but has not been resolved yet.
  */
 export const resolveBlockedByIssueId = (
-  blockedBy: string,
+  blockedByIssueId: string,
   createdIssueIdsByConfigId: Map<string, string>
 ): string | undefined => {
-  const matchedReference = blockedBy.match(issueReferencePattern)
+  const matchedReference = blockedByIssueId.match(issueReferencePattern)
   if (!matchedReference) {
-    return blockedBy
+    return blockedByIssueId
   }
 
   return createdIssueIdsByConfigId.get(matchedReference[1])
