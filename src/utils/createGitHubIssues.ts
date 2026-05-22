@@ -3,6 +3,12 @@ import * as github from '@actions/github'
 
 const issueReferencePattern = /^\$\{\{\s*id\.([^\s}]+)\s*\}\}$/
 
+type ConfigIssueId = string & { readonly __brand: 'ConfigIssueId' }
+type GitHubNodeId = string & { readonly __brand: 'GitHubNodeId' }
+
+const createConfigIssueId = (id: string): ConfigIssueId => id as ConfigIssueId
+const createGitHubNodeId = (id: string): GitHubNodeId => id as GitHubNodeId
+
 const sleep = (milliseconds: number): Promise<string> => {
   return new Promise((resolve) => {
     if (isNaN(milliseconds)) {
@@ -115,14 +121,14 @@ const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
  */
 export const resolveBlockedByIssueId = (
   blockedByIssueId: string,
-  createdIssueIdsByConfigId: Map<string, string>
+  createdIssueIdsByConfigId: Map<ConfigIssueId, GitHubNodeId>
 ): string | undefined => {
   const matchedReference = blockedByIssueId.match(issueReferencePattern)
   if (!matchedReference) {
     return blockedByIssueId
   }
 
-  return createdIssueIdsByConfigId.get(matchedReference[1])
+  return createdIssueIdsByConfigId.get(createConfigIssueId(matchedReference[1]))
 }
 
 const addProjectToIssue = async (issueId: string, projectId: string) => {
@@ -157,7 +163,10 @@ export async function createGitHubIssues(
   milestones: GitHubMilestone[],
   issueTypes: GitHubIssueType[],
   githubProjects: GitHubProject[],
-  createdIssueIdsByConfigId: Map<string, string> = new Map<string, string>()
+  createdIssueIdsByConfigId: Map<ConfigIssueId, GitHubNodeId> = new Map<
+    ConfigIssueId,
+    GitHubNodeId
+  >()
 ): Promise<ConfigIssue[]> {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
@@ -198,7 +207,10 @@ export async function createGitHubIssues(
         core.info(`Created issue: ${createdIssue.data.html_url}`)
 
         if (issue.id !== undefined) {
-          createdIssueIdsByConfigId.set(issue.id, createdIssue.data.node_id)
+          createdIssueIdsByConfigId.set(
+            createConfigIssueId(issue.id),
+            createGitHubNodeId(createdIssue.data.node_id)
+          )
         }
 
         if (issue.type) {

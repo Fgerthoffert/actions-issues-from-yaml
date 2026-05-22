@@ -38818,6 +38818,8 @@ const configListProjects = (issues) => {
 };
 
 const issueReferencePattern = /^\$\{\{\s*id\.([^\s}]+)\s*\}\}$/;
+const createConfigIssueId = (id) => id;
+const createGitHubNodeId = (id) => id;
 const sleep = (milliseconds) => {
     return new Promise((resolve) => {
         if (isNaN(milliseconds)) {
@@ -38902,7 +38904,7 @@ const resolveBlockedByIssueId = (blockedByIssueId, createdIssueIdsByConfigId) =>
     if (!matchedReference) {
         return blockedByIssueId;
     }
-    return createdIssueIdsByConfigId.get(matchedReference[1]);
+    return createdIssueIdsByConfigId.get(createConfigIssueId(matchedReference[1]));
 };
 const addProjectToIssue = async (issueId, projectId) => {
     const inputGithubToken = coreExports.getInput('token');
@@ -38951,7 +38953,7 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                 });
                 coreExports.info(`Created issue: ${createdIssue.data.html_url}`);
                 if (issue.id !== undefined) {
-                    createdIssueIdsByConfigId.set(issue.id, createdIssue.data.node_id);
+                    createdIssueIdsByConfigId.set(createConfigIssueId(issue.id), createGitHubNodeId(createdIssue.data.node_id));
                 }
                 if (issue.type) {
                     const issueType = issueTypes.find((it) => it.name === issue.type &&
