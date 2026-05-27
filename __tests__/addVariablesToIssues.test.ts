@@ -21,7 +21,8 @@ describe('addVariablesToIssues', () => {
       labels: ['bug', 'enhancement'],
       assignees: ['userA', 'userB'],
       id: undefined,
-      github: undefined
+      github: undefined,
+      blockedByIssueId: undefined
     }
   ]
 
@@ -51,7 +52,8 @@ describe('addVariablesToIssues', () => {
         labels: [],
         assignees: [],
         id: undefined,
-        github: undefined
+        github: undefined,
+        blockedByIssueId: undefined
       }
     ]
 
