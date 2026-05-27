@@ -1,6 +1,14 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 
+const issueReferencePattern = /^\$\{\{\s*id\.([^\s}]+)\s*\}\}$/
+
+type ConfigIssueId = string & { readonly __brand: 'ConfigIssueId' }
+type GitHubNodeId = string & { readonly __brand: 'GitHubNodeId' }
+
+const createConfigIssueId = (id: string): ConfigIssueId => id as ConfigIssueId
+const createGitHubNodeId = (id: string): GitHubNodeId => id as GitHubNodeId
+
 const sleep = (milliseconds: number): Promise<string> => {
   return new Promise((resolve) => {
     if (isNaN(milliseconds)) {
@@ -76,6 +84,53 @@ const addChildrenToIssue = async (issueId: string, subIssueId: string) => {
   return addSubIssue.addSubIssue
 }
 
+const addBlockedBy = async (issueId: string, blockedByIssueId: string) => {
+  const inputGithubToken = core.getInput('token')
+  const octokit = github.getOctokit(inputGithubToken)
+
+  const addBlocked = await octokit.graphql<{
+    addBlockedBy: {
+      clientMutationId: string
+      issue: { id: string }
+      blockingIssue: { id: string }
+    }
+  }>(`
+    mutation {
+        addBlockedBy(input: {
+          issueId: "${issueId}",
+          blockingIssueId: "${blockedByIssueId}",
+        }) {
+          clientMutationId
+          issue { id }
+          blockingIssue { id }
+        }
+      }
+  `)
+
+  return addBlocked.addBlockedBy
+}
+
+/**
+ * Resolves the `blockedByIssueId` value from the YAML config into the GitHub
+ * node id expected by the `addBlockedBy` mutation.
+ *
+ * If the value is a direct id, it is returned unchanged. If it uses the
+ * `${{ id.someIssue }}` syntax, the helper looks up the matching node id from
+ * issues that were already created during this run. It returns `undefined`
+ * when a config reference is valid syntactically but has not been resolved yet.
+ */
+export const resolveBlockedByIssueId = (
+  blockedByIssueId: string,
+  createdIssueIdsByConfigId: Map<ConfigIssueId, GitHubNodeId>
+): string | undefined => {
+  const matchedReference = blockedByIssueId.match(issueReferencePattern)
+  if (!matchedReference) {
+    return blockedByIssueId
+  }
+
+  return createdIssueIdsByConfigId.get(createConfigIssueId(matchedReference[1]))
+}
+
 const addProjectToIssue = async (issueId: string, projectId: string) => {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
@@ -107,7 +162,11 @@ export async function createGitHubIssues(
   issues: ConfigIssue[],
   milestones: GitHubMilestone[],
   issueTypes: GitHubIssueType[],
-  githubProjects: GitHubProject[]
+  githubProjects: GitHubProject[],
+  createdIssueIdsByConfigId: Map<ConfigIssueId, GitHubNodeId> = new Map<
+    ConfigIssueId,
+    GitHubNodeId
+  >()
 ): Promise<ConfigIssue[]> {
   const inputGithubToken = core.getInput('token')
   const octokit = github.getOctokit(inputGithubToken)
@@ -120,7 +179,8 @@ export async function createGitHubIssues(
         issue.children,
         milestones,
         issueTypes,
-        githubProjects
+        githubProjects,
+        createdIssueIdsByConfigId
       )
     }
     const [owner, repo] = issue.repository.split('/')
@@ -145,6 +205,13 @@ export async function createGitHubIssues(
           assignees: issue.assignees
         })
         core.info(`Created issue: ${createdIssue.data.html_url}`)
+
+        if (issue.id !== undefined) {
+          createdIssueIdsByConfigId.set(
+            createConfigIssueId(issue.id),
+            createGitHubNodeId(createdIssue.data.node_id)
+          )
+        }
 
         if (issue.type) {
           const issueType = issueTypes.find(
@@ -205,6 +272,40 @@ export async function createGitHubIssues(
           }
         } else {
           core.info(`Issue project not provided, skipping`)
+        }
+
+        if (issue.blockedByIssueId) {
+          const blockedByIssueId = resolveBlockedByIssueId(
+            issue.blockedByIssueId,
+            createdIssueIdsByConfigId
+          )
+          if (blockedByIssueId === undefined) {
+            throw new Error(
+              `Unable to resolve blockedBy reference ${issue.blockedByIssueId} for issue ${issue.title}`
+            )
+          }
+
+          let errorRetry = 0
+          while (errorRetry < 3) {
+            const createBlockedBy = await addBlockedBy(
+              createdIssue.data.node_id,
+              blockedByIssueId
+            )
+            if (createBlockedBy !== undefined && createBlockedBy !== null) {
+              core.info(
+                `Added BLOCKED_BY relationship to issue ${blockedByIssueId} from issue ${createdIssue.data.html_url}`
+              )
+              break
+            } else {
+              core.info(
+                `Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`
+              )
+              await sleep(250)
+              errorRetry++
+            }
+          }
+        } else {
+          core.info(`Issue blockedBy not provided, skipping`)
         }
 
         if (childrenIssues.length > 0) {

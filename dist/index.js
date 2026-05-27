@@ -38817,6 +38817,9 @@ const configListProjects = (issues) => {
     return projects;
 };
 
+const issueReferencePattern = /^\$\{\{\s*id\.([^\s}]+)\s*\}\}$/;
+const createConfigIssueId = (id) => id;
+const createGitHubNodeId = (id) => id;
 const sleep = (milliseconds) => {
     return new Promise((resolve) => {
         if (isNaN(milliseconds)) {
@@ -38870,6 +38873,39 @@ const addChildrenToIssue = async (issueId, subIssueId) => {
   `);
     return addSubIssue.addSubIssue;
 };
+const addBlockedBy = async (issueId, blockedByIssueId) => {
+    const inputGithubToken = coreExports.getInput('token');
+    const octokit = githubExports.getOctokit(inputGithubToken);
+    const addBlocked = await octokit.graphql(`
+    mutation {
+        addBlockedBy(input: {
+          issueId: "${issueId}",
+          blockingIssueId: "${blockedByIssueId}",
+        }) {
+          clientMutationId
+          issue { id }
+          blockingIssue { id }
+        }
+      }
+  `);
+    return addBlocked.addBlockedBy;
+};
+/**
+ * Resolves the `blockedByIssueId` value from the YAML config into the GitHub
+ * node id expected by the `addBlockedBy` mutation.
+ *
+ * If the value is a direct id, it is returned unchanged. If it uses the
+ * `${{ id.someIssue }}` syntax, the helper looks up the matching node id from
+ * issues that were already created during this run. It returns `undefined`
+ * when a config reference is valid syntactically but has not been resolved yet.
+ */
+const resolveBlockedByIssueId = (blockedByIssueId, createdIssueIdsByConfigId) => {
+    const matchedReference = blockedByIssueId.match(issueReferencePattern);
+    if (!matchedReference) {
+        return blockedByIssueId;
+    }
+    return createdIssueIdsByConfigId.get(createConfigIssueId(matchedReference[1]));
+};
 const addProjectToIssue = async (issueId, projectId) => {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
@@ -38889,14 +38925,14 @@ const addProjectToIssue = async (issueId, projectId) => {
     return addProject.addProjectV2ItemById;
 };
 // This function checks if the provided repositories do exist
-async function createGitHubIssues(issues, milestones, issueTypes, githubProjects) {
+async function createGitHubIssues(issues, milestones, issueTypes, githubProjects, createdIssueIdsByConfigId = new Map()) {
     const inputGithubToken = coreExports.getInput('token');
     const octokit = githubExports.getOctokit(inputGithubToken);
     const createdIssues = [];
     for (const issue of issues) {
         let childrenIssues = [];
         if (issue.children) {
-            childrenIssues = await createGitHubIssues(issue.children, milestones, issueTypes, githubProjects);
+            childrenIssues = await createGitHubIssues(issue.children, milestones, issueTypes, githubProjects, createdIssueIdsByConfigId);
         }
         const [owner, repo] = issue.repository.split('/');
         try {
@@ -38916,6 +38952,9 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                     assignees: issue.assignees
                 });
                 coreExports.info(`Created issue: ${createdIssue.data.html_url}`);
+                if (issue.id !== undefined) {
+                    createdIssueIdsByConfigId.set(createConfigIssueId(issue.id), createGitHubNodeId(createdIssue.data.node_id));
+                }
                 if (issue.type) {
                     const issueType = issueTypes.find((it) => it.name === issue.type &&
                         it.repository.full_name === issue.repository);
@@ -38958,6 +38997,28 @@ async function createGitHubIssues(issues, milestones, issueTypes, githubProjects
                 }
                 else {
                     coreExports.info(`Issue project not provided, skipping`);
+                }
+                if (issue.blockedByIssueId) {
+                    const blockedByIssueId = resolveBlockedByIssueId(issue.blockedByIssueId, createdIssueIdsByConfigId);
+                    if (blockedByIssueId === undefined) {
+                        throw new Error(`Unable to resolve blockedBy reference ${issue.blockedByIssueId} for issue ${issue.title}`);
+                    }
+                    let errorRetry = 0;
+                    while (errorRetry < 3) {
+                        const createBlockedBy = await addBlockedBy(createdIssue.data.node_id, blockedByIssueId);
+                        if (createBlockedBy !== undefined && createBlockedBy !== null) {
+                            coreExports.info(`Added BLOCKED_BY relationship to issue ${blockedByIssueId} from issue ${createdIssue.data.html_url}`);
+                            break;
+                        }
+                        else {
+                            coreExports.info(`Unable to add BLOCKED_BY relationship to issue ${createdIssue.data.html_url}, retrying (${errorRetry}/3)`);
+                            await sleep(250);
+                            errorRetry++;
+                        }
+                    }
+                }
+                else {
+                    coreExports.info(`Issue blockedBy not provided, skipping`);
                 }
                 if (childrenIssues.length > 0) {
                     // If there are children issues, creating the sub issue link
